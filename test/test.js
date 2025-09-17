@@ -1,6 +1,7 @@
 const request = require('supertest');
 var assert = require('assert');
 const app = require('../index');
+const res = require('express/lib/response');
 
 /**
  * Testing create game endpoint
@@ -66,7 +67,7 @@ describe('GET /api/games', function () {
  */
 describe('PUT /api/games/1', function () {
     let data = {
-        id : 1,
+        id: 1,
         publisherId: "999000999",
         name: "Test App Updated",
         platform: "android",
@@ -91,6 +92,38 @@ describe('PUT /api/games/1', function () {
                 assert.strictEqual(result.body.bundleId, 'test.newBundle.id');
                 assert.strictEqual(result.body.appVersion, '1.0.1');
                 assert.strictEqual(result.body.isPublished, false);
+                done();
+            });
+    });
+});
+
+/**
+ * Testing search games endpoint
+ */
+describe('POST /api/games/search', function () {
+    it('respond with json containing no games', function (done) {
+        request(app)
+            .post('/api/games/search')
+            .send({ name: 'Non Existent Game', platform: 'android' })
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .expect(200)
+            .end((err, result) => {
+                if (err) return done(err);
+                assert.strictEqual(result.body.length, 0);
+                done();
+            });
+    });
+    it('respond with json containing games', function (done) {
+        request(app)
+            .post('/api/games/search')
+            .send({ name: 'Test App', platform: 'android' })
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .expect(200)
+            .end((err, result) => {
+                if (err) return done(err);
+                assert.strictEqual(result.body.length, 1);
                 done();
             });
     });
@@ -126,6 +159,26 @@ describe('GET /api/games', function () {
             .end((err, result) => {
                 if (err) return done(err);
                 assert.strictEqual(result.body.length, 0);
+                done();
+            });
+    });
+});
+
+/**
+ * Testing populate games endpoint
+ */
+describe('POST /api/games/populate', function () {
+    it('respond with json containing no games', function (done) {
+        request(app)
+            .post('/api/games/populate')
+            .send()
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .expect(200)
+            .end((err, result) => {
+                console.log(result.body.length);
+                if (err) return done(err);
+                assert.strictEqual(result.body.length, 200);
                 done();
             });
     });

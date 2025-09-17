@@ -7,6 +7,28 @@ const app = express();
 app.use(bodyParser.json());
 app.use(express.static(`${__dirname}/static`));
 
+function fetchAndAdd(url, limit) {
+  return fetch(url)
+    .then(response => response.json())
+    .then(data => {
+      const formattedGames = data.flat().slice(0, limit).map((item) => {
+        return {
+          publisherId: item.publisher_id?.toString(),
+          name: item.name,
+          platform: item.os,
+          storeId: item.id?.toString(),
+          bundleId: item.bundle_id ?? 'unknown.bundle.id',
+          appVersion: item.version,
+          isPublished: true,
+        };
+      });
+      return db.Game.bulkCreate(formattedGames);
+    })
+    .catch(error => {
+      console.error('Error fetching data:', error);
+    });
+}
+
 app.get('/api/games', (req, res) => db.Game.findAll()
   .then(games => res.send(games))
   .catch((err) => {
@@ -51,6 +73,43 @@ app.put('/api/games/:id', (req, res) => {
     });
 });
 
+/**
+ * Search route
+ */
+app.post('/api/games/search', (req, res) => {
+  const { name, platform } = req.body;
+  console.log(`Searching games with name containing '${name}' for platform '${platform}'`);
+  return db.Game.findAll({
+    where: {
+      name: {
+        [db.Sequelize.Op.like]: `%${name}%`
+      },
+      platform: {
+        [db.Sequelize.Op.like]: `%${platform}%`
+      }
+    }
+  })
+    .then(games => res.send(games))
+    .catch((err) => {
+      console.log('An error occurred while searching games', JSON.stringify(err));
+      res.status(400).send(err);
+    });
+});
+
+/**
+ * Populate route to add some initial data
+  */
+app.post('/api/games/populate', (req, res) => {
+  Promise.all([
+    fetchAndAdd('https://wizz-technical-test-dev.s3.eu-west-3.amazonaws.com/android.top100.json', 100),
+    fetchAndAdd('https://wizz-technical-test-dev.s3.eu-west-3.amazonaws.com/ios.top100.json', 100)
+  ]).then((games) => {
+    res.status(200).send(games.flat());
+  }).catch((err) => {
+    console.log('An error occurred while populating games', JSON.stringify(err));
+    res.status(400).send(err);
+  });
+});
 
 app.listen(3000, () => {
   console.log('Server is up on port 3000');
