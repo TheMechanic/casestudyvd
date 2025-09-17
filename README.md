@@ -63,8 +63,40 @@ Many other applications at Voodoo will use consume this API.
 We are planning to put this project in production. According to you, what are the missing pieces to make this project production ready? 
 Please elaborate an action plan.
 
+##### Security
+
+To deploy this project to production, the API must implement proper authentication. I recommend using JWTs. Role-based access control should also be implemented, so that some users have read-only permissions while others can perform read/write operations. The API should also be able to track who is accessing or modifying data.
+
+When using JWTs, the API must handle user login and return two tokens to the client (whether via a UI or directly through the API): an access token and a refresh token. The access token should have a short lifespan, while the refresh token should last longer. This approach is secure but can be cumbersome in backend-to-backend scenarios. For such cases, many APIs provide fixed tokens with long or no expiration. Fixed tokens should only be used for fully backend integrations. Any frontend application must use the access/refresh token approach.
+
+The application and API must be deployed on servers accessible exclusively via HTTPS. CORS should be configured to restrict access to trusted origins.
+
+Brute-force protection may not be strictly necessary since this is an internal tool, but it could be beneficial if JWTs are used, particularly to protect the login route from repeated attacks. Rate limiting can be implemented using express-rate-limit.
+
+We must not trust data coming from client requests. All input should be validated and sanitized, for example using libraries like Zod. Regarding SQL Injection, Sequelize provides protection through parameterized queries, but input validation remains important.
+
+All dependencies should be kept up to date. Currently, there are 3 reported vulnerabilities (2 moderate, 1 critical). In particular, the current version of Sequelize contains critical vulnerabilities and should be updated promptly.
+
+
+##### Database
+
+Currently, the database is a simple local file. A production-grade application requires a proper database (e.g., PostgreSQL, MariaDB) secured on an appropriate server. The database must be regularly backed up to prevent data loss and ensure quick restoration in case of failure.
+
+##### Monitoring
+
+For a production application, we need to have monitoring and error detections. This can be handled with tools like Datadog.
+
+
 #### Question 2:
 Let's pretend our data team is now delivering new files every day into the S3 bucket, and our service needs to ingest those files
 every day through the populate API. Could you describe a suitable solution to automate this? Feel free to propose architectural changes.
+
+Currently, the "populate" button is for demonstration purposes only. In production, the database should be updated automatically and periodically. Recommended approaches include:
+
+Scheduled updates: a nightly cron job to import new data.
+
+Event-driven updates: leveraging S3 events, a Lambda function can automatically update the database whenever a new file is uploaded, minimizing delays.
+
+Additionally, the system should implement duplicate checks. If the primary key is the application ID, any attempt to insert an existing application should be ignored.
 
 
